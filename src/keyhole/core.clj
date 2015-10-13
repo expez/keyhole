@@ -84,12 +84,12 @@
   (walk/postwalk (fn [f] (if (= f ::next-fn) form f)) forms))
 
 (defn- make-transformer [coll spec transformer]
-  (let [forms (reverse (conj (map emit spec) transformer))]
+  (let [forms (conj (mapv emit spec) transformer)]
     (reduce combine (list (first forms) coll)
             (rest forms))))
 
 (defmacro transform [coll spec transformer]
-  (let [spec (reverse (parse-filter-spec spec))]
+  (let [spec (parse-filter-spec spec)]
     (make-transformer coll spec (eval transformer))))
 
 (defn benchmark [iters afn]
