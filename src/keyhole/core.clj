@@ -1,74 +1,9 @@
 (ns keyhole.core
   (:require [clojure.walk :as walk]))
 
-(defprotocol TypePreservingMapper
-  (map* [coll f] "Map f over coll, preserving coll's type."))
-
-(extend-protocol TypePreservingMapper
-
-  clojure.lang.APersistentVector
-  (map* [v f] (mapv f v))
-
-  clojure.lang.Sequential
-  (map* [v f] (map f v))
-
-  clojure.lang.APersistentSet
-  (map* [v f] (into #{} (map f v))))
-
-(defprotocol Selector
-  (select* [this next-fn structure] "Select value(s) in structure."))
-
-(defprotocol Transformer
-  (transform* [this next-fn structure] "Transform value(s) in structure."))
-
-(defrecord SeqTransformer [f]
-  Transformer
-  (transform* [this next-fn structure] (map* structure f))
-  clojure.lang.IFn
-  (invoke [this structure] (map* structure f)))
-
-(defrecord ValTransformer [f]
-  Transformer
-  (transform* [this next-fn v] (f v))
-  clojure.lang.IFn
-  (invoke [this arg] (f arg)))
-
 (defn- range-spec?
   [spec]
   (and (sequential? spec) (= (first spec) 'range)))
-
-(extend-protocol Transformer
-
-  clojure.lang.Keyword
-  (transform* [k next-fn m] (assoc m k (next-fn (get m k))))
-
-  java.lang.Long
-  (transform* [i next-fn v] (next-fn (assoc v i))))
-
-(extend-protocol Selector
-
-  clojure.lang.Keyword
-  (select* [k next-fn m] (next-fn (get m k)))
-
-  java.lang.Long
-  (select* [i next-fn v] (next-fn (get v i)))
-
-  clojure.lang.ISeq
-  (filter [v spec] (throw (ex-info "Not implememented" {:spec spec :v v}))))
-
-(defprotocol TypePreservingMapper
-  (map* [coll f] "Map f over coll, preserving coll's type."))
-
-(extend-protocol TypePreservingMapper
-
-  clojure.lang.APersistentVector
-  (map* [v f] (mapv f v))
-
-  clojure.lang.Sequential
-  (map* [v f] (map f v))
-
-  clojure.lang.APersistentSet
-  (map* [v f] (into #{} (map f v))))
 
 (defprotocol Transformer
   (emit [this] "Emit transformer code."))
@@ -92,10 +27,6 @@
 
 (defn- parse-filter-spec [spec]
   (map parse-filter spec))
-
-;; (transform [{:foo [1 2 3]} {:foo [4 5 6]} {:foo [7 8 9]} {:foo [10 11 12]}]
-;;            [(range 0 2) :foo (range 2 3)] inc)
-;; (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo])
 
 (defn- slice
   "Extract the elements between start and end (exclusive) by step.
@@ -166,10 +97,13 @@
    (dotimes [_ iters]
      (afn))))
 
+;; (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo])
 (transform [{:foo [1 2 3]} {:foo [4 5 6]} {:foo [7 8 9]} {:foo [10 11 12]}]
            [(range 0 2) :foo (range 2 3)] inc)
 
 (def DATA {:a {:b {:c 1}}})
+
+
 ;; (transform DATA [:a :b :c] inc )
 ;; (benchmark 1000000 #(get-in DATA [:a :b :c]))
 ;; ;; => "Elapsed time: 77.018 msecs"
