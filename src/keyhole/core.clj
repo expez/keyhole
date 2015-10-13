@@ -28,6 +28,13 @@
 (defn- parse-filter-spec [spec]
   (map parse-filter spec))
 
+(defn- same-collection-type
+  "Coerce new to the same type as old."
+  [old new]
+  (if (vector? old)
+    (into [] new)
+    new))
+
 (defn- slice
   "Extract the elements between start and end (exclusive) by step.
 
@@ -36,9 +43,7 @@
   The type of xs is preserved."
   [xs start end step]
   (let [xs' (some->> xs (drop start) (take (- end start)) (take-nth step))]
-    (if (vector? xs)
-      (into [] xs')
-      xs')))
+    (same-collection-type xs xs')))
 
 (defmacro do1
   "Like do but return the value of the first form instead of the
@@ -67,9 +72,7 @@
                        (= (rem i step) 0))
                 (do1 (nth ys @yi) (vswap! yi inc))
                 (nth xs' i)))]
-    (if (vector? xs)
-      (into [] res)
-      res)))
+    (same-collection-type xs res)))
 
 (defn- update-seq
   "Apply f to every step element of xs between start and end (exclusive.)"
