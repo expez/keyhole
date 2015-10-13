@@ -1,6 +1,20 @@
 (ns keyhole.core
   (:refer-clojure :rename {filter cfilter range crange}))
 
+(defprotocol TypePreservingMapper
+  (map* [coll f] "Map f over coll, preserving coll's type."))
+
+(extend-protocol TypePreservingMapper
+
+  clojure.lang.APersistentVector
+  (map* [v f] (mapv f v))
+
+  clojure.lang.Sequential
+  (map* [v f] (map f v))
+
+  clojure.lang.APersistentSet
+  (map* [v f] (into #{} (map f v))))
+
 (defprotocol Selector
   (select* [this next-fn structure] "Select value(s) in structure."))
 
