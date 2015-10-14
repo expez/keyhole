@@ -194,6 +194,16 @@
   :selector `(partial map ::next)
   :transformer `(partial update-all ::next))
 
+(defn- update-first [f xs]
+  (->> xs
+       rest
+       (concat [(f (first xs))])
+       (same-collection-type xs)))
+
+(defkeyhole first* [] [clojure.lang.Symbol 'first*] (constantly [])
+  :selector `(comp ::next first)
+  :transformer `(partial update-first ::next))
+
 (println
  (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo]))
 
@@ -202,7 +212,7 @@
             [(range 0 2) :foo (range 2 3)] inc))
 
 (println
- (select [{:a 1} {:a 2} {:a 4} {:a 3}] [all* :a]))
+ (select [{:a 1} {:a 2} {:a 4} {:a 3}] [first* :a]))
 
 ;; (def DATA {:a {:b {:c 1}}})
 
