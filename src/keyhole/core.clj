@@ -1,34 +1,81 @@
 (ns keyhole.core
-  (:require [clojure.walk :as walk]))
-
-(defn- range-spec?
-  [spec]
-  (and (sequential? spec) (= (first spec) 'range)))
+  (:require [clojure
+             [string :as str]
+             [walk :as walk]]))
 
 (defprotocol Transformer
+  "The transformer code is used to perform some transformation on a
+  value in a nested datastructure.
+
+  The emitted form should be a function which is ready to consume a value.
+
+  When emitting code, in the transformer function, all the data fields
+  of the corresponding keyhole is available.
+
+  The placeholder ::next is used to indicate where the next
+  transformer should go.
+
+  Here's the transformer code for the keyword keyhole:
+  `(partial update* ::next ~k)
+
+  Where update* is update with the parameters re-ordered to
+  afford partial application."
   (transformer [this] "Emit transformer code."))
 
-(extend-protocol Transformer
-
-  clojure.lang.Keyword
-  (transformer [this] `(partial update* ::next-fn ~this)))
-
 (defprotocol Selector
+  "The selector code is used to perform some a value lookup in a
+  nested datastructure.
+
+  The emitted form should be a function which is ready to consume a
+  value.
+
+  When emitting code, in the selector function, all the data fields
+  of the corresponding keyhole is available.
+
+  The placeholder ::next is used to indicate where the next
+  selector should go.
+
+  Here's the selector code for the keyword keyhole:
+  `(comp ::next ~k)"
   (selector [this] "Emit selector code."))
 
-(extend-protocol Selector
+(defmacro defkeyhole
+  "A keyhole is a way to look into a datastructure.  By composing
+  various keyholes we can extract values or use keyhole surgery to change
+  them.
 
-  clojure.lang.Keyword
-  (selector [this] `(comp ::next-fn ~this)))
+  name is used to give a name to the keyhole we're creating.
 
-(defrecord RangeSpec [start end step]
-  Transformer
-  (transformer [this] `(partial update-seq ::next-fn ~start ~end ~step))
-  Selector
-  (selector [this] `(partial update-slice ~start ~end ~step ::next-fn)))
+  fields are the data fields needed to perform transformations or selections.
 
-(defn make-RangeSpec [[_ start end step]]
-  (RangeSpec. start end (or step 1)))
+  dispatch-val is used recognize instances of this keyhole in the spec.
+  See the docstring for parse-dispatcher.
+
+  parser is a function which will be passed the spec and should return an
+  ordered list matching the entries in fields.
+
+  selector is the form we should emit to lookup a value.
+  See the docstring for the Selector protocol.
+
+  transformer is the form we should emit to transform a value.
+  See the docstring for the Selector protocol.
+
+  Here is the keyhole for keywords:
+
+  (defkeyhole keyword [k] clojure.lang.Keyword list
+   :selector `(comp ::next ~k)
+   :transformer `(partial update* ::next ~k))"
+  [name fields dispatch-val parser & {:keys [selector transformer]}]
+  (let [record-name (-> name str str/capitalize symbol)
+        constructor (symbol (str "->" record-name)) ]
+    `(do
+       (defrecord ~record-name ~fields
+         Transformer
+         (transformer [this#] ~transformer)
+         Selector
+         (selector [this#] ~selector))
+       (defmethod parse ~dispatch-val ~(symbol (str name "-parser-method"))
+         [spec#] (apply ~constructor (~parser spec#))))))
 
 (defn parse-dispatcher
   "Return the function name of the spec or its type.
@@ -41,10 +88,6 @@
     (type spec)))
 
 (defmulti parse "Parse a spec." #'parse-dispatcher)
-
-(defmethod parse 'range [spec] (make-RangeSpec spec))
-
-(defmethod parse clojure.lang.Keyword [spec] spec)
 
 (defmethod parse :default [spec]
   (throw (ex-info "Uknown spec" {:spec spec})))
@@ -122,15 +165,21 @@
         transformer-forms (mapv transformer spec)]
     (combine-forms transformer-forms coll (eval f))))
 
-(defn benchmark [iters afn]
-  (time
-   (dotimes [_ iters]
-     (afn))))
-
 (defmacro select [coll spec]
   (let [spec (parse-spec spec)
         selector-forms (mapv selector spec)]
     (combine-forms selector-forms coll identity)))
+
+(defn- range-parser [[_ start end step]]
+  [start end (or step 1)])
+
+(defkeyhole range [start end step] 'range range-parser
+  :selector `(partial update-slice ~start ~end ~step ::next-fn)
+  :transformer `(partial update-seq ::next-fn ~start ~end ~step))
+
+(defkeyhole keyword [k] clojure.lang.Keyword list
+  :selector `(comp ::next-fn ~k)
+  :transformer `(partial update* ::next-fn ~k))
 
 (println
  (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo]))
@@ -139,8 +188,13 @@
  (transform [{:foo [1 2 3]} {:foo [4 5 6]} {:foo [7 8 9]} {:foo [10 11 12]}]
             [(range 0 2) :foo (range 2 3)] inc))
 
+
 ;; (def DATA {:a {:b {:c 1}}})
 
+;; (defn benchmark [iters afn]
+;;   (time
+;;    (dotimes [_ iters]
+;;      (afn))))
 
 ;; (transform DATA [:a :b :c] inc )
 ;; (benchmark 1000000 #(get-in DATA [:a :b :c]))
