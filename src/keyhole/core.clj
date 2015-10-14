@@ -197,16 +197,23 @@
 (defn- update-first [f [x & xs]]
   (same-collection-type xs (cons (f x) xs)))
 
-(defn- update-last [f xs]
-  (same-collection-type xs (concat (butlast xs) [(f (last xs))])))
-
 (defkeyhole first* [] [clojure.lang.Symbol 'first*] (constantly [])
   :selector `(comp ::next first)
   :transformer `(partial update-first ::next))
 
+(defn- update-last [f xs]
+  (same-collection-type xs (concat (butlast xs) [(f (last xs))])))
+
 (defkeyhole last* [] [clojure.lang.Symbol 'last*] (constantly [])
   :selector `(comp ::next last)
   :transformer `(partial update-last ::next))
+
+(defn- update-butlast [f xs]
+  (same-collection-type xs (concat (map f (butlast xs)) [(last xs)])))
+
+(defkeyhole butlast* [] [clojure.lang.Symbol 'butlast*] (constantly [])
+  :selector `(comp (partial map ::next) butlast)
+  :transformer `(partial update-butlast ::next))
 
 (println
  (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo]))
@@ -216,7 +223,8 @@
             [(range 0 2) :foo (range 2 3)] inc))
 
 (println
- (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [last* :a] inc))
+ (select [{:a 1} {:a 2} {:a 3} {:a 4}] [butlast* :a]))
+
 
 ;; (def DATA {:a {:b {:c 1}}})
 
