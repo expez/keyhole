@@ -35,8 +35,27 @@
     (range-spec? f) (make-RangeSpec f)
     :else f))
 
-(defn- parse-filter-spec [spec]
-  (map parse-filter spec))
+(defn parse-dispatcher
+  "Return the function name of the spec or its type.
+
+  :foo => clojure.lang.keyword
+  (range 0 2) => range"
+  [spec]
+  (if (sequential? spec)
+    (first spec)
+    (type spec)))
+
+(defmulti parse "Parse a spec." #'parse-dispatcher)
+
+(defmethod parse 'range [spec] (make-RangeSpec spec))
+
+(defmethod parse clojure.lang.Keyword [spec] spec)
+
+(defmethod parse :default [spec]
+  (throw (ex-info "Uknown spec" {:spec spec})))
+
+(defn- parse-spec [spec]
+  (map parse spec))
 
 (defn- same-collection-type
   "Coerce new to the same type as old."
@@ -104,7 +123,7 @@
     (reduce combine (list (first forms) coll) (rest forms))))
 
 (defmacro transform [coll spec f]
-  (let [spec (parse-filter-spec spec)
+  (let [spec (parse-spec spec)
         transformer-forms (mapv transformer spec)]
     (combine-forms transformer-forms coll (eval f))))
 
@@ -114,7 +133,7 @@
      (afn))))
 
 (defmacro select [coll spec]
-  (let [spec (parse-filter-spec spec)
+  (let [spec (parse-spec spec)
         selector-forms (mapv selector spec)]
     (combine-forms selector-forms coll identity)))
 
