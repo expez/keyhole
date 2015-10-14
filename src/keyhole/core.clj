@@ -30,11 +30,6 @@
 (defn make-RangeSpec [[_ start end step]]
   (RangeSpec. start end (or step 1)))
 
-(defn parse-filter [f]
-  (cond
-    (range-spec? f) (make-RangeSpec f)
-    :else f))
-
 (defn parse-dispatcher
   "Return the function name of the spec or its type.
 
@@ -137,23 +132,25 @@
         selector-forms (mapv selector spec)]
     (combine-forms selector-forms coll identity)))
 
-(select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo])
+(println
+ (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo]))
 
-(transform [{:foo [1 2 3]} {:foo [4 5 6]} {:foo [7 8 9]} {:foo [10 11 12]}]
-           [(range 0 2) :foo (range 2 3)] inc)
+(println
+ (transform [{:foo [1 2 3]} {:foo [4 5 6]} {:foo [7 8 9]} {:foo [10 11 12]}]
+            [(range 0 2) :foo (range 2 3)] inc))
 
-(def DATA {:a {:b {:c 1}}})
+;; (def DATA {:a {:b {:c 1}}})
 
 
 ;; (transform DATA [:a :b :c] inc )
 ;; (benchmark 1000000 #(get-in DATA [:a :b :c]))
-;; ;; => "Elapsed time: 77.018 msecs"
+;; => "Elapsed time: 77.018 msecs"
 
 ;; (benchmark 1000000 #(select DATA [:a :b :c]))
-;; ;; => "Elapsed time: 4143.343 msecs"
+;; => "Elapsed time: 4143.343 msecs"
 
 ;; (benchmark 1000000 #(-> DATA :a :b :c vector))
-;; ;; => "Elapsed time: 34.235 msecs"
+;; => "Elapsed time: 34.235 msecs"
 
 ;; (benchmark 1000000 #(update-in DATA [:a :b :c] inc))
 ;; => "Elapsed time: 1037.94 msecs"
@@ -171,4 +168,4 @@
 ;;                       (update d2 :c inc))))))
 
 ;; (benchmark 1000000 #(manual-transform DATA))
-;; => "Elapsed time: 161.945 msecs"
+;;=> "Elapsed time: 161.945 msecs"
