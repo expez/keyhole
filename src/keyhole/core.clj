@@ -211,9 +211,16 @@
 (defn- update-butlast [f xs]
   (same-collection-type xs (concat (map f (butlast xs)) [(last xs)])))
 
+(defn- update-rest [f [x & xs]]
+  (same-collection-type xs (cons xs (map f (rest xs)))))
+
 (defkeyhole butlast* [] [clojure.lang.Symbol 'butlast*] (constantly [])
   :selector `(comp (partial map ::next) butlast)
   :transformer `(partial update-butlast ::next))
+
+(defkeyhole rest* [] [clojure.lang.Symbol 'rest*] (constantly [])
+  :selector `(comp (partial map ::next) rest)
+  :transformer `(partial update-rest ::next))
 
 (println
  (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo]))
@@ -223,6 +230,7 @@
             [(range 0 2) :foo (range 2 3)] inc))
 
 (println
+ (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [butlast* :a] inc)
  (select [{:a 1} {:a 2} {:a 3} {:a 4}] [butlast* :a]))
 
 
