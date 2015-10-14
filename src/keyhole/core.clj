@@ -6,16 +6,26 @@
   (and (sequential? spec) (= (first spec) 'range)))
 
 (defprotocol Transformer
-  (emit [this] "Emit transformer code."))
+  (transformer [this] "Emit transformer code."))
 
 (extend-protocol Transformer
 
   clojure.lang.Keyword
-  (emit [this] `(partial update* ::next-fn ~this)))
+  (transformer [this] `(partial update* ::next-fn ~this)))
+
+(defprotocol Selector
+  (selector [this] "Emit selector code."))
+
+(extend-protocol Selector
+
+  clojure.lang.Keyword
+  (selector [this] `(comp ::next-fn ~this)))
 
 (defrecord RangeSpec [start end step]
   Transformer
-  (emit [this] `(partial update-seq ::next-fn ~start ~end ~step)))
+  (transformer [this] `(partial update-seq ::next-fn ~start ~end ~step))
+  Selector
+  (selector [this] `(partial update-slice ~start ~end ~step ::next-fn)))
 
 (defn make-RangeSpec [[_ start end step]]
   (RangeSpec. start end (or step 1)))
@@ -41,9 +51,12 @@
   (slice [1 2 3 4] 0 3 2) => [1 3]
 
   The type of xs is preserved."
-  [xs start end step]
+  [start end step xs]
   (let [xs' (some->> xs (drop start) (take (- end start)) (take-nth step))]
     (same-collection-type xs xs')))
+
+(defn- update-slice [start end step f xs]
+  (map f (slice start end step xs)))
 
 (defmacro do1
   "Like do but return the value of the first form instead of the
@@ -77,7 +90,7 @@
 (defn- update-seq
   "Apply f to every step element of xs between start and end (exclusive.)"
   [f start end step xs]
-  (splice xs (map f (slice xs start end step)) start end step))
+  (splice xs (map f (slice start end step xs)) start end step))
 
 (defn update* [f k m]
   (let [m' (update {} k (constantly (f (get m k))))]
@@ -86,10 +99,16 @@
 (defn- combine [forms form]
   (walk/postwalk (fn [f] (if (= f ::next-fn) form f)) forms))
 
-(defn- make-transformer [coll spec transformer]
-  (let [forms (conj (mapv emit spec) transformer)]
-    (reduce combine (list (first forms) coll)
-            (rest forms))))
+(defn- make-transformer [coll spec f]
+  (let [forms (conj (mapv transformer spec) f)]
+    (reduce combine (list (first forms) coll) (rest forms))))
+
+(defn- combine-selector [forms form]
+  (walk/postwalk (fn [f] (if (= f ::next-fn) forms f)) form))
+
+(defn- make-selector [coll spec]
+  (let [forms (conj (mapv selector spec) identity)]
+    (reduce combine (list (first forms) coll) (rest forms))))
 
 (defmacro transform [coll spec transformer]
   (let [spec (parse-filter-spec spec)]
@@ -100,7 +119,12 @@
    (dotimes [_ iters]
      (afn))))
 
-;; (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo])
+(defmacro select [coll spec]
+  (let [spec (parse-filter-spec spec)]
+    (make-selector coll spec)))
+
+(select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo])
+
 (transform [{:foo [1 2 3]} {:foo [4 5 6]} {:foo [7 8 9]} {:foo [10 11 12]}]
            [(range 0 2) :foo (range 2 3)] inc)
 
