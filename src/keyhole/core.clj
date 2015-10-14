@@ -112,7 +112,10 @@
   (let [xs' (some->> xs (drop start) (take (- end start)) (take-nth step))]
     (same-collection-type xs xs')))
 
-(defn- update-slice [start end step f xs]
+(defn- map-slice
+  "Apply f to every value in the slice created by start end and step
+  on xs."
+  [start end step f xs]
   (map f (slice start end step xs)))
 
 (defmacro do1
@@ -144,7 +147,7 @@
                 (nth xs' i)))]
     (same-collection-type xs res)))
 
-(defn- update-seq
+(defn- update-slice
   "Apply f to every step element of xs between start and end (exclusive.)"
   [f start end step xs]
   (splice xs (map f (slice start end step xs)) start end step))
@@ -174,10 +177,10 @@
   [start end (or step 1)])
 
 (defkeyhole range [start end step] 'range range-parser
-  :selector `(partial update-slice ~start ~end ~step ::next)
-  :transformer `(partial update-seq ::next ~start ~end ~step))
+  :selector `(partial map-slice ~start ~end ~step ::next)
+  :transformer `(partial update-slice ::next ~start ~end ~step))
 
-(defkeyhole keyword [k] clojure.lang.Keyword list
+(defkeyhole kw [k] clojure.lang.Keyword list
   :selector `(comp ::next ~k)
   :transformer `(partial update* ::next ~k))
 
