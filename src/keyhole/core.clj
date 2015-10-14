@@ -153,7 +153,7 @@
   (update m k f))
 
 (defn- combine [forms form]
-  (walk/postwalk (fn [f] (if (= f ::next-fn) form f)) forms))
+  (walk/postwalk (fn [f] (if (= f ::next) form f)) forms))
 
 (defn- combine-forms
   [forms coll f]
@@ -174,12 +174,12 @@
   [start end (or step 1)])
 
 (defkeyhole range [start end step] 'range range-parser
-  :selector `(partial update-slice ~start ~end ~step ::next-fn)
-  :transformer `(partial update-seq ::next-fn ~start ~end ~step))
+  :selector `(partial update-slice ~start ~end ~step ::next)
+  :transformer `(partial update-seq ::next ~start ~end ~step))
 
 (defkeyhole keyword [k] clojure.lang.Keyword list
-  :selector `(comp ::next-fn ~k)
-  :transformer `(partial update* ::next-fn ~k))
+  :selector `(comp ::next ~k)
+  :transformer `(partial update* ::next ~k))
 
 (println
  (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo]))
