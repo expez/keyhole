@@ -93,8 +93,7 @@
   (splice xs (map f (slice start end step xs)) start end step))
 
 (defn update* [f k m]
-  (let [m' (update {} k (constantly (f (get m k))))]
-    (merge m m')))
+  (update m k f))
 
 (defn- combine [forms form]
   (walk/postwalk (fn [f] (if (= f ::next-fn) form f)) forms))
