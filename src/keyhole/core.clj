@@ -99,20 +99,15 @@
 (defn- combine [forms form]
   (walk/postwalk (fn [f] (if (= f ::next-fn) form f)) forms))
 
-(defn- make-transformer [coll spec f]
-  (let [forms (conj (mapv transformer spec) f)]
+(defn- combine-forms
+  [forms coll f]
+  (let [forms (conj forms f)]
     (reduce combine (list (first forms) coll) (rest forms))))
 
-(defn- combine-selector [forms form]
-  (walk/postwalk (fn [f] (if (= f ::next-fn) forms f)) form))
-
-(defn- make-selector [coll spec]
-  (let [forms (conj (mapv selector spec) identity)]
-    (reduce combine (list (first forms) coll) (rest forms))))
-
-(defmacro transform [coll spec transformer]
-  (let [spec (parse-filter-spec spec)]
-    (make-transformer coll spec (eval transformer))))
+(defmacro transform [coll spec f]
+  (let [spec (parse-filter-spec spec)
+        transformer-forms (mapv transformer spec)]
+    (combine-forms transformer-forms coll (eval f))))
 
 (defn benchmark [iters afn]
   (time
@@ -120,8 +115,9 @@
      (afn))))
 
 (defmacro select [coll spec]
-  (let [spec (parse-filter-spec spec)]
-    (make-selector coll spec)))
+  (let [spec (parse-filter-spec spec)
+        selector-forms (mapv selector spec)]
+    (combine-forms selector-forms coll identity)))
 
 (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo])
 
