@@ -51,8 +51,8 @@
   dispatch-val is used recognize instances of this keyhole in the spec.
   See the docstring for parse-dispatcher.
 
-  parser is a function which will be passed the spec and should return an
-  ordered list matching the entries in fields.
+  parser is a function which will be passed the spec and should return
+  an ordered list matching the entries in fields.
 
   selector is the form we should emit to lookup a value.
   See the docstring for the Selector protocol.
@@ -75,17 +75,20 @@
          Selector
          (selector [this#] ~selector))
        (defmethod parse ~dispatch-val ~(symbol (str name "-parser-method"))
-         [spec#] (apply ~constructor (~parser spec#))))))
+         [spec#] (apply ~constructor (~parser  spec#))))))
 
 (defn parse-dispatcher
-  "Return the function name of the spec or its type.
+  ":foo => clojure.lang.keyword
+  (range 0 2) => range
+  foo => [clojure.lang.Symbol foo]
 
-  :foo => clojure.lang.keyword
-  (range 0 2) => range"
+  Anything else maps to itself."
   [spec]
-  (if (sequential? spec)
-    (first spec)
-    (type spec)))
+  (cond
+    (sequential? spec) (first spec)
+    (keyword? spec) (type spec)
+    (symbol? spec) [(type spec) spec]
+    :else spec))
 
 (defmulti parse "Parse a spec." #'parse-dispatcher)
 
@@ -184,6 +187,13 @@
   :selector `(comp ::next ~k)
   :transformer `(partial update* ::next ~k))
 
+(defn- update-all [f xs]
+  (->> xs (map f) (same-collection-type xs)))
+
+(defkeyhole all* [] [clojure.lang.Symbol 'all*] (constantly [])
+  :selector `(partial map ::next)
+  :transformer `(partial update-all ::next))
+
 (println
  (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo]))
 
@@ -191,6 +201,8 @@
  (transform [{:foo [1 2 3]} {:foo [4 5 6]} {:foo [7 8 9]} {:foo [10 11 12]}]
             [(range 0 2) :foo (range 2 3)] inc))
 
+(println
+ (select [{:a 1} {:a 2} {:a 4} {:a 3}] [all* :a]))
 
 ;; (def DATA {:a {:b {:c 1}}})
 
