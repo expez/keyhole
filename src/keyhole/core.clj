@@ -191,7 +191,9 @@
     `(~(transformer spec) ~coll)))
 
 (defn remove-dead-ends [res]
-  (remove #{::nothing} res))
+  (if (sequential? res)
+    (remove #{::nothing} res)
+    res))
 
 (defmacro select [coll spec]
   (let [spec (parse-spec spec identity)]
@@ -261,7 +263,6 @@
 
 ;; (println (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [rest* :a] inc))
 ;; (println (select [{:a 1} {:a 2} {:a 3} {:a 4}] [all* :a even?]))
-
 
 ;; (def DATA {:a {:b {:c 1}}})
 
