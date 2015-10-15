@@ -99,11 +99,12 @@
   Anything else maps to itself."
   [spec]
   (letfn [(predicate? [spec]
-            (and (symbol? spec) (resolve spec) (fn? (deref (resolve spec)))))]
+            (or (and (sequential? spec) (= (first spec) 'fn*)) ; #(= 1 %)
+                (and (symbol? spec) (resolve spec) (fn? (deref (resolve spec))))))]
     (cond
+      (predicate? spec) ::predicate
       (sequential? spec) (first spec)
       (keyword? spec) ::keyword
-      (predicate? spec) ::predicate
       (symbol? spec) [::fn spec]
       :else spec)))
 
@@ -246,7 +247,11 @@
   :transformer `(partial update-rest ~next-transformer))
 
 (defn- parse-predicate [spec]
-  [(resolve spec)])
+  ;; A predicate is either a symbol resolving to a predicate function
+  ;; or a function literal
+  (if (symbol? spec)
+    [(resolve spec)]
+    [spec]))
 
 (defn fif [pred fthen felse v]
   (if (pred v)

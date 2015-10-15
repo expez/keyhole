@@ -46,4 +46,7 @@
 (defexamples pred-test
   [2 4] (k/select [{:foo 1} {:foo 2} {:foo 4}] [all* :foo even?])
   [{:foo 1} {:foo 1} {:foo 3}]
-  (k/transform [{:foo 1} {:foo 2} {:foo 4}] [all* :foo even?] dec))
+  (k/transform [{:foo 1} {:foo 2} {:foo 4}] [all* :foo even?] dec)
+  [{:foo 0} {:foo 0} {:foo 3}]
+  (k/transform [{:foo 0} {:foo 1} {:foo 3}] [all* :foo #(= % 1)] dec)
+  )
