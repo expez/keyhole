@@ -12,18 +12,18 @@
   When emitting code, in the transformer function, all the data fields
   of the corresponding keyhole is available.
 
-  The placeholder ::next is used to indicate where the next
-  transformer should go.
+  Additionally the field next-transformer can be used to place the
+  subsequent transformer in the right place.
 
   Here's the transformer code for the keyword keyhole:
-  `(partial update* ::next ~k)
+  `(partial update* ~next-transformer ~k)
 
   Where update* is update with the parameters re-ordered to
   afford partial application."
   (transformer [this] "Emit transformer code."))
 
 (defprotocol Selector
-  "The selector code is used to perform some a value lookup in a
+  "The selector code is used to perform a value lookup in a
   nested datastructure.
 
   The emitted form should be a function which is ready to consume a
@@ -32,24 +32,30 @@
   When emitting code, in the selector function, all the data fields
   of the corresponding keyhole is available.
 
-  The placeholder ::next is used to indicate where the next
-  selector should go.
+  Additionally the field next-selector can be used to place the
+  subsequent transformer in the right place.
 
   Here's the selector code for the keyword keyhole:
-  `(comp ::next ~k)"
+  `(comp ~next-selector ~k)"
   (selector [this] "Emit selector code."))
+
+(defrecord Fin [f]
+  Transformer
+  (transformer [this] f)
+  Selector
+  (selector [this] f))
 
 (defmacro defkeyhole
   "A keyhole is a way to look into a datastructure.  By composing
-  various keyholes we can extract values or use keyhole surgery to change
-  them.
+  various keyholes we can extract values or perform keyhole surgery to
+  change them.
 
   name is used to give a name to the keyhole we're creating.
 
   fields are the data fields needed to perform transformations or selections.
 
-  dispatch-val is used recognize instances of this keyhole in the spec.
-  See the docstring for parse-dispatcher.
+  dispatch-val is used to recognize instances of this keyhole in the spec.
+  See the docstring for parse-dispatcher about which values to use here.
 
   parser is a function which will be passed the spec and should return
   an ordered list matching the entries in fields.
@@ -62,43 +68,44 @@
 
   Here is the keyhole for keywords:
 
-  (defkeyhole keyword [k] clojure.lang.Keyword list
-   :selector `(comp ::next ~k)
-   :transformer `(partial update* ::next ~k))"
+  (defkeyhole kw [k] ::keyword list
+  :selector `(comp ~next-selector ~k)
+  :transformer `(partial update* ~next-transformer ~k))"
   [name fields dispatch-val parser & {:keys [selector transformer]}]
   (let [record-name (-> name str str/capitalize symbol)
-        constructor (symbol (str "->" record-name)) ]
+        constructor (symbol (str "map->" record-name))]
     `(do
-       (defrecord ~record-name ~fields
+       (defrecord ~record-name ~(into '[next-transformer next-selector] fields)
          Transformer
          (transformer [this#] ~transformer)
          Selector
          (selector [this#] ~selector))
        (defmethod parse ~dispatch-val ~(symbol (str name "-parser-method"))
-         [spec#] (apply ~constructor (~parser  spec#))))))
+         [spec#]
+         (~constructor (merge {:next-transformer nil :next-selector nil}
+                              (zipmap (map keyword '~fields) (~parser spec#))))))))
 
 (defn parse-dispatcher
-  ":foo => clojure.lang.keyword
+  ":foo => ::keyword
   (range 0 2) => range
-  foo => [clojure.lang.Symbol foo]
-  symbol? clojure.lang.IFn
+  foo => [::fn foo]
+  symbol? ::predicate
 
   Anything else maps to itself."
   [spec]
-  (cond
-    (sequential? spec) (first spec)
-    (keyword? spec) (type spec)
-    (and (symbol? spec) (fn? (deref (resolve spec)))) clojure.lang.IFn
-    (symbol? spec) [(type spec) spec]
-    :else spec))
+  (letfn [(predicate? [spec]
+            (and (symbol? spec) (resolve spec) (fn? (deref (resolve spec)))))]
+    (cond
+      (sequential? spec) (first spec)
+      (keyword? spec) ::keyword
+      (predicate? spec) ::predicate
+      (symbol? spec) [::fn spec]
+      :else spec)))
 
 (defmulti parse "Parse a spec." #'parse-dispatcher)
 
 (defmethod parse :default [spec]
   (throw (ex-info "Uknown spec" {:spec spec})))
-
-(defn- parse-spec [spec]
-  (map parse spec))
 
 (defn- same-collection-type
   "Coerce new to the same type as old."
@@ -106,6 +113,20 @@
   (if (vector? old)
     (into [] new)
     new))
+
+(defn- update-first [f [x & xs]]
+  (same-collection-type xs (cons (f x) xs)))
+
+(defn- link-steps [spec]
+  (let [[fin & spec] (reverse spec)]
+    (reduce (fn [n s]
+              (merge s {:next-transformer (transformer n)
+                        :next-selector (selector n)}))
+            fin
+            spec)))
+
+(defn- parse-spec [spec transformer]
+  (link-steps (conj (mapv parse spec) (Fin. transformer))))
 
 (defn- slice
   "Extract the elements between start and end (exclusive) by step.
@@ -117,13 +138,13 @@
   (let [xs' (some->> xs (drop start) (take (- end start)) (take-nth step))]
     (same-collection-type xs xs')))
 
-(defn- map-slice
+(defn map-slice
   "Apply f to every value in the slice created by start end and step
   on xs."
   [start end step f xs]
   (map f (slice start end step xs)))
 
-(defmacro do1
+(defmacro ^:private do1
   "Like do but return the value of the first form instead of the
   last."
   [res & exprs*]
@@ -152,7 +173,7 @@
                 (nth xs' i)))]
     (same-collection-type xs res)))
 
-(defn- update-slice
+(defn update-slice
   "Apply f to every step element of xs between start and end (exclusive.)"
   [f start end step xs]
   (splice xs (map f (slice start end step xs)) start end step))
@@ -160,69 +181,60 @@
 (defn update* [f k m]
   (update m k f))
 
-(defn- combine [forms form]
-  (walk/postwalk (fn [f] (if (= f ::next) form f)) forms))
-
-(defn- combine-forms
-  [forms coll f]
-  (let [forms (conj forms f)]
-    (reduce combine (list (first forms) coll) (rest forms))))
-
 (defmacro transform [coll spec f]
-  (let [spec (parse-spec spec)
-        transformer-forms (mapv transformer spec)]
-    (combine-forms transformer-forms coll (eval f))))
+  (let [spec (parse-spec spec f)]
+    `(~(transformer spec) ~coll)))
 
 (defmacro select [coll spec]
-  (let [spec (parse-spec spec)
-        selector-forms (mapv selector spec)]
-    (combine-forms selector-forms coll identity)))
+  (let [spec (parse-spec spec identity)]
+    `(~(selector spec) ~coll)))
 
 (defn- range-parser [[_ start end step]]
   [start end (or step 1)])
 
 (defkeyhole range [start end step] 'range range-parser
-  :selector `(partial map-slice ~start ~end ~step ::next)
-  :transformer `(partial update-slice ::next ~start ~end ~step))
+  :selector `(partial map-slice ~start ~end ~step ~next-selector)
+  :transformer `(partial update-slice ~next-transformer ~start ~end ~step))
 
-(defkeyhole kw [k] clojure.lang.Keyword list
-  :selector `(comp ::next ~k)
-  :transformer `(partial update* ::next ~k))
+(defkeyhole kw [k] ::keyword list
+  :selector `(comp ~next-selector ~k)
+  :transformer `(partial update* ~next-transformer ~k))
 
-(defn- update-all [f xs]
-  (->> xs (map f) (same-collection-type xs)))
+(defn update-all [f xs]
+  (same-collection-type xs (map f xs)))
 
-(defkeyhole all* [] [clojure.lang.Symbol 'all*] (constantly [])
-  :selector `(partial map ::next)
-  :transformer `(partial update-all ::next))
+(defkeyhole all* [] [::fn 'all*] (constantly [])
+  :selector `(partial map ~next-selector)
+  :transformer `(partial update-all ~next-transformer))
 
-(defn- update-first [f [x & xs]]
+(defn update-first [f [x & xs]]
   (same-collection-type xs (cons (f x) xs)))
 
-(defkeyhole first* [] [clojure.lang.Symbol 'first*] (constantly [])
-  :selector `(comp ::next first)
-  :transformer `(partial update-first ::next))
+(defkeyhole first* [] [::fn 'first*] (constantly [])
+  :selector `(comp ~next-selector first)
+  :transformer `(partial update-first ~next-transformer))
 
-(defn- update-last [f xs]
+(defn update-last [f xs]
   (same-collection-type xs (concat (butlast xs) [(f (last xs))])))
 
-(defkeyhole last* [] [clojure.lang.Symbol 'last*] (constantly [])
-  :selector `(comp ::next last)
-  :transformer `(partial update-last ::next))
+(defkeyhole last* [] [::fn 'last*] (constantly [])
+  :selector `(comp ~next-selector last)
+  :transformer `(partial update-last ~next-transformer))
 
-(defn- update-butlast [f xs]
+(defn update-butlast [f xs]
   (same-collection-type xs (concat (map f (butlast xs)) [(last xs)])))
 
-(defkeyhole butlast* [] [clojure.lang.Symbol 'butlast*] (constantly [])
-  :selector `(comp (partial map ::next) butlast)
-  :transformer `(partial update-butlast ::next))
+(defkeyhole butlast* [] [::fn 'butlast*] (constantly [])
+  :selector `(comp (partial map ~next-selector) butlast)
+  :transformer `(partial update-butlast ~next-transformer))
 
-(defn- update-rest [f [x & xs]]
+(defn update-rest [f [x & xs]]
   (same-collection-type xs (cons x (map f xs))))
 
-(defkeyhole rest* [] [clojure.lang.Symbol 'rest*] (constantly [])
-  :selector `(comp (partial map ::next) rest)
-  :transformer `(partial update-rest ::next))
+(defkeyhole rest* [] [::fn 'rest*] (constantly [])
+  :selector `(comp (partial map ~next-selector) rest)
+  :transformer `(partial update-rest ~next-transformer))
+
 
 (println
  (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo]))
