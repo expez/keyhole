@@ -81,12 +81,14 @@
   ":foo => clojure.lang.keyword
   (range 0 2) => range
   foo => [clojure.lang.Symbol foo]
+  symbol? clojure.lang.IFn
 
   Anything else maps to itself."
   [spec]
   (cond
     (sequential? spec) (first spec)
     (keyword? spec) (type spec)
+    (and (symbol? spec) (fn? (deref (resolve spec)))) clojure.lang.IFn
     (symbol? spec) [(type spec) spec]
     :else spec))
 
@@ -211,12 +213,12 @@
 (defn- update-butlast [f xs]
   (same-collection-type xs (concat (map f (butlast xs)) [(last xs)])))
 
-(defn- update-rest [f [x & xs]]
-  (same-collection-type xs (cons xs (map f (rest xs)))))
-
 (defkeyhole butlast* [] [clojure.lang.Symbol 'butlast*] (constantly [])
   :selector `(comp (partial map ::next) butlast)
   :transformer `(partial update-butlast ::next))
+
+(defn- update-rest [f [x & xs]]
+  (same-collection-type xs (cons x (map f xs))))
 
 (defkeyhole rest* [] [clojure.lang.Symbol 'rest*] (constantly [])
   :selector `(comp (partial map ::next) rest)
