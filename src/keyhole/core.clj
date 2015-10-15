@@ -253,10 +253,6 @@
     (fthen v)
     (felse v)))
 
-(defn fwhen [pred fthen v]
-  (when (pred v)
-    (fthen v)))
-
 (defkeyhole predicate [f] ::predicate parse-predicate
   :selector `(partial fif ~f ~next-selector (constantly ::nothing))
   :transformer `(partial fif ~f ~next-transformer identity))
