@@ -35,6 +35,11 @@
   Additionally the field next-selector can be used to place the
   subsequent transformer in the right place.
 
+  Since a selector is a form which evaluates to a partial ready to
+  consume a value conditional selection is tricky.  This is solved by
+  returning the value ::nothing, which will be removed from the final
+  result set.
+
   Here's the selector code for the keyword keyhole:
   `(comp ~next-selector ~k)"
   (selector [this] "Emit selector code."))
@@ -185,9 +190,12 @@
   (let [spec (parse-spec spec f)]
     `(~(transformer spec) ~coll)))
 
+(defn remove-dead-ends [res]
+  (remove #{::nothing} res))
+
 (defmacro select [coll spec]
   (let [spec (parse-spec spec identity)]
-    `(~(selector spec) ~coll)))
+    `(remove-dead-ends (~(selector spec) ~coll))))
 
 (defn- range-parser [[_ start end step]]
   [start end (or step 1)])
@@ -235,17 +243,24 @@
   :selector `(comp (partial map ~next-selector) rest)
   :transformer `(partial update-rest ~next-transformer))
 
+(defn- parse-predicate [spec]
+  [(resolve spec)])
 
-(println
- (select  [{:foo 1} {:foo 2} {:foo 3} {:foo 4}] [(range 0 2) :foo]))
+(defn fif [pred fthen felse v]
+  (if (pred v)
+    (fthen v)
+    (felse v)))
 
-(println
- (transform [{:foo [1 2 3]} {:foo [4 5 6]} {:foo [7 8 9]} {:foo [10 11 12]}]
-            [(range 0 2) :foo (range 2 3)] inc))
+(defn fwhen [pred fthen v]
+  (when (pred v)
+    (fthen v)))
 
-(println
- (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [butlast* :a] inc)
- (select [{:a 1} {:a 2} {:a 3} {:a 4}] [butlast* :a]))
+(defkeyhole predicate [f] ::predicate parse-predicate
+  :selector `(partial fif ~f ~next-selector (constantly ::nothing))
+  :transformer `(partial fif ~f ~next-transformer identity))
+
+;; (println (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [rest* :a] inc))
+;; (println (select [{:a 1} {:a 2} {:a 3} {:a 4}] [all* :a even?]))
 
 
 ;; (def DATA {:a {:b {:c 1}}})
