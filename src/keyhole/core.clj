@@ -192,9 +192,10 @@
     `(~(transformer spec) ~coll)))
 
 (defn remove-dead-ends [res]
-  (if (sequential? res)
-    (remove #{::nothing} res)
-    res))
+  (cond
+    (sequential? res) (remove #{::nothing} res)
+    (= res ::nothing) nil
+    :else res))
 
 (defmacro select [coll spec]
   (let [spec (parse-spec spec identity)]
