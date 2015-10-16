@@ -199,7 +199,7 @@
 
 (defmacro select [coll spec]
   (let [spec (parse-spec spec identity)]
-    `(remove-dead-ends (~(selector spec) ~coll))))
+    `(remove-sentinels (~(selector spec) ~coll))))
 
 (defn- range-parser [[_ start end step]]
   [start end (or step 1)])
