@@ -56,7 +56,7 @@
 (defrecord Fin [f]
   Transformer
   (transformer [this] f)
-  (transformer-basis [this] f)
+  (transformer-basis [this] [::val f])
   Selector
   (selector [this] f))
 
