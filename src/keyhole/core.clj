@@ -203,7 +203,7 @@
 (defn- range-parser [[_ start end step]]
   [start end (or step 1)])
 
-(defkeyhole range [start end step] 'range range-parser
+(defkeyhole range* [start end step] 'range* range-parser
   :selector `(partial map-slice ~start ~end ~step ~next-selector)
   :transformer `(partial update-slice ~next-transformer ~start ~end ~step))
 

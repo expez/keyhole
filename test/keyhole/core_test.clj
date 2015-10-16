@@ -14,9 +14,9 @@
   1 (k/select {:foo {:bar 1}} [:foo :bar])
   {:foo {:bar 2}} (k/transform {:foo {:bar 1}} [:foo :bar] inc))
 
-(defexamples range-test
-  [0 1] (k/select [0 1 2] [(range 0 2)])
-  [0 1 2] (k/transform [-1 0 2] [(range 0 2)] inc))
+(defexamples range*-test
+  [0 1] (k/select [0 1 2] [(range* 0 2)])
+  [0 1 2] (k/transform [-1 0 2] [(range* 0 2)] inc))
 
 (defexamples all*-test
   [0 1 2] (k/select [{:foo 0} {:foo 1} {:foo 2}] [all* :foo])
@@ -48,5 +48,4 @@
   [{:foo 1} {:foo 1} {:foo 3}]
   (k/transform [{:foo 1} {:foo 2} {:foo 4}] [all* :foo even?] dec)
   [{:foo 0} {:foo 0} {:foo 3}]
-  (k/transform [{:foo 0} {:foo 1} {:foo 3}] [all* :foo #(= % 1)] dec)
-  )
+  (k/transform [{:foo 0} {:foo 1} {:foo 3}] [all* :foo #(= % 1)] dec))
