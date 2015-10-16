@@ -233,6 +233,10 @@
   :selector `(comp ~next-selector ~k)
   :transformer `(partial update* ~next-transformer ~k))
 
+(defkeyhole generalized-kw [k] 'key (fn [[_ k]] (list k))
+  :selector `(comp ~next-selector (fn [m#] (get m# ~k)))
+  :transformer `(partial update* ~next-transformer ~k))
+
 (defn update-all [f xs]
   (same-collection-type xs (map f xs)))
 

@@ -53,3 +53,8 @@
 (defexamples filter*-test
   2 (k/select [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(filter* #(:bar %)) first* :foo])
   [2 1 3 6 10 4 8] (k/transform [2 1 3 6 9 4 8] [(filter* odd?) last*] inc))
+
+(defexamples generalized-kw-test
+  3 (k/select [{"foo" {[1 2] 3}}] [first* (key "foo") (key [1 2])])
+  [{"foo" {[1 2] 4}}]
+  (k/transform [{"foo" {[1 2] 3}}] [first* (key "foo") (key [1 2])] inc))
