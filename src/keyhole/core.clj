@@ -12,15 +12,24 @@
   When emitting code, in the transformer function, all the data fields
   of the corresponding keyhole is available.
 
-  Additionally the field next-transformer can be used to place the
-  subsequent transformer in the right place.
+  The field next-transformer can be used to place the subsequent
+  transformer in the right place.
+
+  transformer-basis is used to give some transformations, earlier in
+  the chain, a hint about what's going to change so they can
+  re-construct properly.  E.g. filter* needs last* to hint that
+  filter* only needs to update the last of the filtered values it
+  produces.  The basis is a pair of ::val or ::seq and a basis
+  function.  The first half of the the pair indicates whether or not
+  the return value should be spliced in or not.
 
   Here's the transformer code for the keyword keyhole:
   `(partial update* ~next-transformer ~k)
 
   Where update* is update with the parameters re-ordered to
   afford partial application."
-  (transformer [this] "Emit transformer code."))
+  (transformer [this] "Emit transformer code.")
+  (transformer-basis [this] "Emit the basis transformer."))
 
 (defprotocol Selector
   "The selector code is used to perform a value lookup in a
@@ -47,6 +56,7 @@
 (defrecord Fin [f]
   Transformer
   (transformer [this] f)
+  (transformer-basis [this] f)
   Selector
   (selector [this] f))
 
@@ -69,25 +79,34 @@
   See the docstring for the Selector protocol.
 
   transformer is the form we should emit to transform a value.
-  See the docstring for the Selector protocol.
+  See the docstring for the Transformer protocol.
+
+  transformer-basis is required to provide hints to other transformations.
+  See the docstring for the Transformer protocol.
 
   Here is the keyhole for keywords:
 
   (defkeyhole kw [k] ::keyword list
   :selector `(comp ~next-selector ~k)
   :transformer `(partial update* ~next-transformer ~k))"
-  [name fields dispatch-val parser & {:keys [selector transformer]}]
+  [name fields dispatch-val parser
+   & {:keys [selector transformer transformer-basis]}]
   (let [record-name (-> name str str/capitalize symbol)
         constructor (symbol (str "map->" record-name))]
     `(do
-       (defrecord ~record-name ~(into '[next-transformer next-selector] fields)
+       (defrecord ~record-name
+           ~(into '[next-transformer next-selector
+                    transformer-basis next-transformer-basis] fields)
          Transformer
          (transformer [this#] ~transformer)
+         (transformer-basis [this#] ~transformer-basis)
          Selector
          (selector [this#] ~selector))
        (defmethod parse ~dispatch-val ~(symbol (str name "-parser-method"))
          [spec#]
-         (~constructor (merge {:next-transformer nil :next-selector nil}
+         (~constructor (merge {:next-transformer nil :next-selector nil
+                               :transformer-basis nil
+                               :next-transformer-basis nil}
                               (zipmap (map keyword '~fields) (~parser spec#))))))))
 
 (defn parse-dispatcher
@@ -127,6 +146,7 @@
   (let [[fin & spec] (reverse spec)]
     (reduce (fn [n s]
               (merge s {:next-transformer (transformer n)
+                        :next-transformer-basis (transformer-basis n)
                         :next-selector (selector n)}))
             fin
             spec)))
@@ -191,7 +211,7 @@
   (let [spec (parse-spec spec f)]
     `(~(transformer spec) ~coll)))
 
-(defn remove-dead-ends [res]
+(defn remove-sentinels [res]
   (cond
     (sequential? res) (remove #{::nothing} res)
     (= res ::nothing) nil
@@ -206,7 +226,8 @@
 
 (defkeyhole range* [start end step] 'range* range-parser
   :selector `(partial map-slice ~start ~end ~step ~next-selector)
-  :transformer `(partial update-slice ~next-transformer ~start ~end ~step))
+  :transformer `(partial update-slice ~next-transformer ~start ~end ~step)
+  :transformer-basis [::seq `(partial slice ~start ~end ~step)])
 
 (defkeyhole kw [k] ::keyword list
   :selector `(comp ~next-selector ~k)
@@ -217,35 +238,40 @@
 
 (defkeyhole all* [] [::fn 'all*] (constantly [])
   :selector `(partial map ~next-selector)
-  :transformer `(partial update-all ~next-transformer))
+  :transformer `(partial update-all ~next-transformer)
+  :transformer-basis [::seq identity])
 
 (defn update-first [f [x & xs]]
   (same-collection-type xs (cons (f x) xs)))
 
 (defkeyhole first* [] [::fn 'first*] (constantly [])
   :selector `(comp ~next-selector first)
-  :transformer `(partial update-first ~next-transformer))
+  :transformer `(partial update-first ~next-transformer)
+  :transformer-basis [::val first])
 
 (defn update-last [f xs]
   (same-collection-type xs (concat (butlast xs) [(f (last xs))])))
 
 (defkeyhole last* [] [::fn 'last*] (constantly [])
   :selector `(comp ~next-selector last)
-  :transformer `(partial update-last ~next-transformer))
+  :transformer `(partial update-last ~next-transformer)
+  :transformer-basis [::val last])
 
 (defn update-butlast [f xs]
   (same-collection-type xs (concat (map f (butlast xs)) [(last xs)])))
 
 (defkeyhole butlast* [] [::fn 'butlast*] (constantly [])
   :selector `(comp (partial map ~next-selector) butlast)
-  :transformer `(partial update-butlast ~next-transformer))
+  :transformer `(partial update-butlast ~next-transformer)
+  :transformer-basis [::seq butlast])
 
 (defn update-rest [f [x & xs]]
   (same-collection-type xs (cons x (map f xs))))
 
 (defkeyhole rest* [] [::fn 'rest*] (constantly [])
   :selector `(comp (partial map ~next-selector) rest)
-  :transformer `(partial update-rest ~next-transformer))
+  :transformer `(partial update-rest ~next-transformer)
+  :transformer-basis [::seq rest])
 
 (defn- parse-predicate [spec]
   ;; A predicate is either a symbol resolving to a predicate function
@@ -262,6 +288,35 @@
 (defkeyhole predicate [f] ::predicate parse-predicate
   :selector `(partial fif ~f ~next-selector (constantly ::nothing))
   :transformer `(partial fif ~f ~next-transformer identity))
+
+(defn- parse-filter [[_ pred]]
+  [pred])
+
+(defn- ensure-list [x]
+  (if (sequential? x)
+    x
+    (list x)))
+
+(defn- find-changed-indexes [xs pred transformer-basis]
+  (->> xs
+       (map-indexed (fn [i v] (when (pred v) i)))
+       (remove nil?)
+       transformer-basis
+       ensure-list))
+
+(defn update-filtered [pred tf [ret-type transformer-basis] xs]
+  (let [new-vals (->> xs (filter pred) tf vector)
+        new-vals (if (= ret-type ::seq) (mapcat identity new-vals) new-vals)
+        changed-indexes (find-changed-indexes xs pred transformer-basis)
+        m (zipmap changed-indexes new-vals)]
+    (same-collection-type xs (reduce (fn [acc [i v]] (assoc acc i v)) (vec xs) m))))
+
+(defn filter* [f xs]
+  (same-collection-type xs (filter f xs)))
+
+(defkeyhole filter* [f] 'filter* parse-filter
+  :selector `(comp ~next-selector (partial filter* ~f))
+  :transformer `(partial update-filtered ~f ~next-selector ~next-transformer-basis))
 
 ;; (println (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [rest* :a] inc))
 ;; (println (select [{:a 1} {:a 2} {:a 3} {:a 4}] [all* :a even?]))
@@ -299,4 +354,5 @@
 ;;                       (update d2 :c inc))))))
 
 ;; (benchmark 1000000 #(manual-transform DATA))
-;;=> "Elapsed time: 161.945 msecs"
+;; => "Elapsed time: 161.945 msecs"
+;; (select [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(filter* #(:bar %)) first*])

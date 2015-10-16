@@ -24,7 +24,7 @@
   (k/transform [{:foo 0} {:foo 1} {:foo 2}] [all* :foo] inc))
 
 (defexamples first*-test
-  0 (k/select [{:foo 0} {:foo 1} {:foo 2}] [first* :foo])
+  0 (k/select [{:foo 0} {:foo 1} {:foo 2}] [first* :foo even?])
   [{:foo 1} {:foo 1} {:foo 2}]
   (k/transform [{:foo 0} {:foo 1} {:foo 2}] [first* :foo] inc))
 
@@ -49,3 +49,7 @@
   (k/transform [{:foo 1} {:foo 2} {:foo 4}] [all* :foo even?] dec)
   [{:foo 0} {:foo 0} {:foo 3}]
   (k/transform [{:foo 0} {:foo 1} {:foo 3}] [all* :foo #(= % 1)] dec))
+
+(defexamples filter*-test
+  2 (k/select [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(filter* #(:bar %)) first* :foo])
+  [2 1 3 6 10 4 8] (k/transform [2 1 3 6 9 4 8] [(filter* odd?) last*] inc))
