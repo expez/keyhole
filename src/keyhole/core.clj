@@ -160,7 +160,7 @@
 
 (defn- splice
   "Splice the elements of ys into xs by replacing every step element
-  between start ane end (exclusive).
+  between start and end (exclusive).
 
   Splice is the reverse of slice.
 
