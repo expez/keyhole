@@ -123,7 +123,7 @@
     (cond
       (predicate? spec) ::predicate
       (sequential? spec) (first spec)
-      (keyword? spec) ::keyword
+      (keyword? spec) 'key
       (symbol? spec) [::fn spec]
       :else spec)))
 
@@ -229,11 +229,12 @@
   :transformer `(partial update-slice ~next-transformer ~start ~end ~step)
   :transformer-basis [::seq `(partial slice ~start ~end ~step)])
 
-(defkeyhole kw [k] ::keyword list
-  :selector `(comp ~next-selector ~k)
-  :transformer `(partial update* ~next-transformer ~k))
+(defn- kw-parser [spec]
+  (if (sequential? spec)
+    (list (second spec))
+    (list spec)))
 
-(defkeyhole generalized-kw [k] 'key (fn [[_ k]] (list k))
+(defkeyhole kw [k] 'key kw-parser
   :selector `(comp ~next-selector (fn [m#] (get m# ~k)))
   :transformer `(partial update* ~next-transformer ~k))
 
