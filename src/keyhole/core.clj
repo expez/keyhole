@@ -310,7 +310,7 @@
        ensure-list))
 
 (defn update-filtered [pred tf [ret-type transformer-basis] xs]
-  (let [new-vals (->> xs (filter pred) tf vector)
+  (let [new-vals (->> xs (filter pred) tf transformer-basis vector)
         new-vals (if (= ret-type ::seq) (mapcat identity new-vals) new-vals)
         changed-indexes (find-changed-indexes xs pred transformer-basis)
         m (zipmap changed-indexes new-vals)]
@@ -321,7 +321,7 @@
 
 (defkeyhole filter* [f] 'filter* parse-filter
   :selector `(comp ~next-selector (partial filter* ~f))
-  :transformer `(partial update-filtered ~f ~next-selector ~next-transformer-basis))
+  :transformer `(partial update-filtered ~f ~next-transformer ~next-transformer-basis))
 
 ;; (println (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [rest* :a] inc))
 ;; (println (select [{:a 1} {:a 2} {:a 3} {:a 4}] [all* :a even?]))
