@@ -58,3 +58,8 @@
   3 (k/select [{"foo" {[1 2] 3}}] [first* (key "foo") (key [1 2])])
   [{"foo" {[1 2] 4}}]
   (k/transform [{"foo" {[1 2] 3}}] [first* (key "foo") (key [1 2])] inc))
+
+(defexamples nth*-test
+  4 (k/select [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(nth* 2) :foo])
+  [{:foo 1} {:foo 3 :bar 1} {:foo 4}]
+  (k/transform [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(nth* 1) :foo] inc))

@@ -110,7 +110,7 @@
                               (zipmap (map keyword '~fields) (~parser spec#))))))))
 
 (defn parse-dispatcher
-  ":foo => ::keyword
+  ":foo => 'key
   (range 0 2) => range
   foo => [::fn foo]
   symbol? ::predicate
@@ -323,17 +323,27 @@
   :selector `(comp ~next-selector (partial filter* ~f))
   :transformer `(partial update-filtered ~f ~next-transformer ~next-transformer-basis))
 
+(defn- parse-nth [[_ n]]
+  [n])
+
+(defn update-nth [n transformer coll]
+  (let [c (into [] coll)]
+    (same-collection-type coll (assoc c n (transformer (get c n))))))
+
+(defkeyhole nth* [n] 'nth* parse-nth
+  :selector `(comp ~next-selector (fn [coll#] (nth coll# ~n)))
+  :transformer `(partial update-nth ~n ~next-transformer)
+  :transformer-basis [::val nth])
+
 ;; (println (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [rest* :a] inc))
 ;; (println (select [{:a 1} {:a 2} {:a 3} {:a 4}] [all* :a even?]))
 
 ;; (def DATA {:a {:b {:c 1}}})
 
-;; (defn benchmark [iters afn]
-;;   (time
-;;    (dotimes [_ iters]
-;;      (afn))))
+;; (defn benchmark [iters afn] (time (dotimes [_ iters] (afn))))
 
-;; (transform DATA [:a :b :c] inc )
+;; (defn p (comp-paths (filterer (comp #(>= (count %) 2) (partial filter even?))) ALL))
+
 ;; (benchmark 1000000 #(get-in DATA [:a :b :c]))
 ;; => "Elapsed time: 77.018 msecs"
 
@@ -348,7 +358,6 @@
 
 ;; (benchmark 1000000 #(transform DATA [:a :b :c] inc))
 ;; => "Elapsed time: 4305.429 msecs"
-;; (transform DATA [:a :b :c] inc )
 ;; (defn manual-transform [data]
 ;;   (update data
 ;;           :a
