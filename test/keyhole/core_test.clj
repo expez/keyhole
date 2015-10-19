@@ -63,3 +63,8 @@
   4 (k/select [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(nth* 2) :foo])
   [{:foo 1} {:foo 3 :bar 1} {:foo 4}]
   (k/transform [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(nth* 1) :foo] inc))
+
+(defexamples nthrest*-test
+  4 (k/select [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(nthrest* 2) first* :foo])
+  [{:foo 1} {:foo 3 :bar 1} {:foo 4}]
+  (k/transform [{:foo 1} {:foo 2 :bar 1} {:foo 3}] [(nthrest* 1) :foo] inc))

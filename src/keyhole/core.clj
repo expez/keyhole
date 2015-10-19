@@ -1,7 +1,5 @@
 (ns keyhole.core
-  (:require [clojure
-             [string :as str]
-             [walk :as walk]]))
+  (:require [clojure.string :as str]))
 
 (defprotocol Transformer
   "The transformer code is used to perform some transformation on a
@@ -334,6 +332,17 @@
   :selector `(comp ~next-selector (fn [coll#] (nth coll# ~n)))
   :transformer `(partial update-nth ~n ~next-transformer)
   :transformer-basis [::val nth])
+
+(defn- parse-nthrest [[_ n]]
+  [n])
+
+(defn update-nthrest [n f xs]
+  (same-collection-type xs (into (vec (take n xs)) (map f (nthrest xs n)))))
+
+(defkeyhole nthrest* [n] 'nthrest* parse-nthrest
+  :selector `(comp ~next-selector (fn [coll#] (nthrest coll# ~n)))
+  :transformer `(partial update-nthrest ~n ~next-transformer)
+  :transformer-basis [::seq nth])
 
 ;; (println (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [rest* :a] inc))
 ;; (println (select [{:a 1} {:a 2} {:a 3} {:a 4}] [all* :a even?]))
