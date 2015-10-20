@@ -51,10 +51,10 @@
   `(comp ~next-selector ~k)"
   (selector [this] "Emit selector code."))
 
-(defrecord Fin [f]
+(defrecord Fin [f t]
   Transformer
   (transformer [this] f)
-  (transformer-basis [this] [::val f])
+  (transformer-basis [this] [t f])
   Selector
   (selector [this] f))
 
@@ -149,10 +149,16 @@
             fin
             spec)))
 
-(defn- parse-spec [spec transformer]
-  (link-steps (conj (mapv parse spec) (Fin. transformer))))
+(defn- spec-type [step]
+  (letfn [(spec-type [n] (if (.endsWith (str n) "*") ::seq ::val))]
+    (if (sequential? step)
+      (spec-type (first step))
+      (spec-type step))))
 
-(defn- slice
+(defn- parse-spec [spec transformer]
+  (link-steps (conj (mapv parse spec) (Fin. transformer (spec-type (last spec))))))
+
+(defn slice
   "Extract the elements between start and end (exclusive) by step.
 
   (slice [1 2 3 4] 0 3 2) => [1 3]
@@ -198,9 +204,9 @@
     (same-collection-type xs res)))
 
 (defn update-slice
-  "Apply f to every step element of xs between start and end (exclusive.)"
+  "Apply f to the slice of xs created with start end and step."
   [f start end step xs]
-  (splice xs (map f (slice start end step xs)) start end step))
+  (splice xs (f (slice start end step xs)) start end step))
 
 (defn update* [f k m]
   (update m k f))

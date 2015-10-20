@@ -16,7 +16,7 @@
 
 (defexamples range*-test
   [0 1] (k/select [0 1 2] [(range* 0 2)])
-  [0 1 2] (k/transform [-1 0 2] [(range* 0 2)] inc))
+  [0 1 2] (k/transform [-1 0 2] [(range* 0 2) all*] inc))
 
 (defexamples all*-test
   [0 1 2] (k/select [{:foo 0} {:foo 1} {:foo 2}] [all* :foo])
@@ -52,7 +52,10 @@
 
 (defexamples filter*-test
   2 (k/select [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(filter* #(:bar %)) first* :foo])
-  [2 1 3 6 10 4 8] (k/transform [2 1 3 6 9 4 8] [(filter* odd?) last*] inc))
+  [2 1 3 6 10 4 8] (k/transform [2 1 3 6 9 4 8] [(filter* odd?) last*] inc)
+  [0 1 2 3 10 5 8 7 6 9 4 11 12 13 14 15]
+  (k/transform [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15]
+               [(range* 4 11) (filter* even?)] reverse))
 
 (defexamples generalized-kw-test
   3 (k/select [{"foo" {[1 2] 3}}] [first* (key "foo") (key [1 2])])
