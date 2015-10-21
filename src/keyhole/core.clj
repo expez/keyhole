@@ -56,7 +56,7 @@
   (transformer [this] f)
   (transformer-basis [this] [t f])
   Selector
-  (selector [this] f))
+  (selector [this] `(comp list ~f)))
 
 (defmacro defkeyhole
   "A keyhole is a way to look into a datastructure.  By composing
@@ -168,11 +168,10 @@
   (let [xs' (some->> xs (drop start) (take (- end start)) (take-nth step))]
     (same-collection-type xs xs')))
 
-(defn map-slice
-  "Apply f to every value in the slice created by start end and step
-  on xs."
+(defn select-slice
+  "Apply f to the slice created by start end and step on xs."
   [start end step f xs]
-  (map f (slice start end step xs)))
+  (f (slice start end step xs)))
 
 (defmacro ^:private do1
   "Like do but return the value of the first form instead of the
@@ -229,7 +228,7 @@
   [start end (or step 1)])
 
 (defkeyhole range* [start end step] 'range* range-parser
-  :selector `(partial map-slice ~start ~end ~step ~next-selector)
+  :selector `(partial select-slice ~start ~end ~step ~next-selector)
   :transformer `(partial update-slice ~next-transformer ~start ~end ~step)
   :transformer-basis [::seq `(partial slice ~start ~end ~step)])
 
@@ -246,7 +245,7 @@
   (same-collection-type xs (map f xs)))
 
 (defkeyhole all* [] [::fn 'all*] (constantly [])
-  :selector `(partial map ~next-selector)
+  :selector `(partial mapcat ~next-selector)
   :transformer `(partial update-all ~next-transformer)
   :transformer-basis [::seq identity])
 
@@ -270,7 +269,7 @@
   (same-collection-type xs (concat (map f (butlast xs)) [(last xs)])))
 
 (defkeyhole butlast* [] [::fn 'butlast*] (constantly [])
-  :selector `(comp (partial map ~next-selector) butlast)
+  :selector `(comp (partial mapcat ~next-selector) butlast)
   :transformer `(partial update-butlast ~next-transformer)
   :transformer-basis [::seq butlast])
 
@@ -278,7 +277,7 @@
   (same-collection-type xs (cons x (map f xs))))
 
 (defkeyhole rest* [] [::fn 'rest*] (constantly [])
-  :selector `(comp (partial map ~next-selector) rest)
+  :selector `(comp (partial mapcat ~next-selector) rest)
   :transformer `(partial update-rest ~next-transformer)
   :transformer-basis [::seq rest])
 
@@ -295,7 +294,7 @@
     (felse v)))
 
 (defkeyhole predicate [f] ::predicate parse-predicate
-  :selector `(partial fif ~f ~next-selector (constantly ::nothing))
+  :selector `(partial fif ~f ~next-selector (constantly [::nothing]))
   :transformer `(partial fif ~f ~next-transformer identity))
 
 (defn- parse-filter [[_ pred]]
