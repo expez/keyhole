@@ -29,10 +29,18 @@ Add the following dependency to your `project.clj` file:
 ;; Increment the last odd number in a seq:
 (k/update-in [2 1 3 6 9 4 8] [(filter* odd?) last*] inc)
 ;;=> [2 1 3 6 10 4 8]
+
+;; Increment all the odd numbers between indexes 1 (inclusive) and 7 (exclusive) with step 3:
+(k/update-in [0 1 2 3 4 5 6 7] [(range* 1 7 3) all* odd?] inc)
+;;=> [0 1 2 2 4 5 4 7]
+
+;; Replace the subsequence from index 2 to 4 with [-1 -1 -1]
+(k/update-in [0 1 2 3 4 5 6 7 8 9] [(range* 2 4)] (constantly [-1 -1 -1]))
+;;=> [0 1 -1 -1 4 5 6 7 8 9]
 ```
 
 ## Raison d'être
-<img src="https://cloud.githubusercontent.com/assets/1006557/10664720/dafb72d2-78c5-11e5-9701-a2414473c74d.jpg" align="right" style="max-width:50%;"/>
+<img src="https://cloud.githubusercontent.com/assets/1006557/10665167/7eab4846-78c9-11e5-9ac5-a694428435b9.jpg" align="right"/>
 This library is heavily inspired by
 [specter](https://github.com/nathanmarz/specter).  I think
 [specter](https://github.com/nathanmarz/specter) is the best thing to
