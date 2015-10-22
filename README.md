@@ -26,10 +26,13 @@ Add the following dependency to your `project.clj` file:
 (k/get-in [[1 2 3 4] [] [5 3 2 18] [2 4 6] [12]] [all* all* #(= 0 (mod % 3))])
 ;;=> (3 3 18 6 12)
 
+;; Increment the last odd number in a seq:
+(k/update-in [2 1 3 6 9 4 8] [(filter* odd?) last*] inc)
+;;=> [2 1 3 6 10 4 8]
 ```
 
 ## Raison d'être
-<img src="https://cloud.githubusercontent.com/assets/1006557/10664720/dafb72d2-78c5-11e5-9701-a2414473c74d.jpg" align="right" style="max-width:50%;">
+<img src="https://cloud.githubusercontent.com/assets/1006557/10664720/dafb72d2-78c5-11e5-9701-a2414473c74d.jpg" align="right" style="max-width:50%;"/>
 This library is heavily inspired by
 [specter](https://github.com/nathanmarz/specter).  I think
 [specter](https://github.com/nathanmarz/specter) is the best thing to
