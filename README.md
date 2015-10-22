@@ -14,7 +14,7 @@ Add the following dependency to your `project.clj` file:
 
 ```clj
 (ns some-ns
-    (:require [keyhole.core :as k]))
+  (:require [keyhole.core :as k]))
 
 ;;; Examples taken from the specter readme for comparison purposes
 

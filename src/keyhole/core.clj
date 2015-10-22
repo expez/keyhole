@@ -1,4 +1,5 @@
 (ns keyhole.core
+  (:refer-clojure :exclude [update-in get-in])
   (:require [keyhole
              [impl :as impl]
              [parser :as parser]
