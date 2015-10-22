@@ -9,9 +9,22 @@ Add the following dependency to your `project.clj` file:
 ```clj
 [keyhole "0.1.0"]
 ```
-## Raison d'être
-<img src="https://cloud.githubusercontent.com/assets/1006557/10664380/339b48d4-78c3-11e5-9666-c58d281872c6.jpg" align="right">
 
+## Usage
+
+```clj
+(ns some-ns
+    (:require [keyhole.core :as k]))
+
+;;; Examples taken from the specter readme for comparison purposes
+
+;; Increment all even values under the :a key for a seq of maps:
+(k/get-in [{:a 1} {:a 2} {:a 4} {:a 3}] [all* :a even?])
+;;=> (2 4)
+```
+
+## Raison d'être
+<img src="https://cloud.githubusercontent.com/assets/1006557/10664720/dafb72d2-78c5-11e5-9701-a2414473c74d.jpg" align="right" style="max-width: 50%;">
 This library is heavily inspired by
 [specter](https://github.com/nathanmarz/specter).  I think
 [specter](https://github.com/nathanmarz/specter) is the best thing to
