@@ -1,15 +1,6 @@
 (ns keyhole.parser
   (:require [keyhole.protocols :as protocols]))
 
-;; Wrapper for the final selector / transformer.
-(defrecord Fin [f t]
-  protocols/Transformer
-  (protocols/transformer [this] f)
-  (protocols/transformer-basis [this] [t f])
-  protocols/Selector
-  (protocols/selector [this] `(comp list ~f)))
-
-
 (defn parse-dispatcher
   ":foo => 'key
   (range 0 2) => range
@@ -47,6 +38,14 @@
     (if (sequential? step)
       (spec-type (first step))
       (spec-type step))))
+
+;; Wrapper for the final selector / transformer.
+(defrecord Fin [f t]
+  protocols/Transformer
+  (protocols/transformer [this] f)
+  (protocols/transformer-basis [this] [t f])
+  protocols/Selector
+  (protocols/selector [this] `(comp list ~f)))
 
 (defn parse-spec [spec transformer]
   (link-steps (conj (mapv parse spec) (Fin. transformer (spec-type (last spec))))))
