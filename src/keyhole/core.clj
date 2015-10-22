@@ -348,39 +348,3 @@
   :selector `(comp ~next-selector (fn [coll#] (nthrest coll# ~n)))
   :transformer `(partial update-nthrest ~n ~next-transformer)
   :transformer-basis [::seq nth])
-
-;; (println (transform [{:a 1} {:a 2} {:a 3} {:a 4}] [rest* :a] inc))
-;; (println (select [{:a 1} {:a 2} {:a 3} {:a 4}] [all* :a even?]))
-
-;; (def DATA {:a {:b {:c 1}}})
-
-;; (defn benchmark [iters afn] (time (dotimes [_ iters] (afn))))
-
-;; (defn p (comp-paths (filterer (comp #(>= (count %) 2) (partial filter even?))) ALL))
-
-;; (benchmark 1000000 #(get-in DATA [:a :b :c]))
-;; => "Elapsed time: 77.018 msecs"
-
-;; (benchmark 1000000 #(select DATA [:a :b :c]))
-;; => "Elapsed time: 4143.343 msecs"
-
-;; (benchmark 1000000 #(-> DATA :a :b :c vector))
-;; => "Elapsed time: 34.235 msecs"
-
-;; (benchmark 1000000 #(update-in DATA [:a :b :c] inc))
-;; => "Elapsed time: 1037.94 msecs"
-
-;; (benchmark 1000000 #(transform DATA [:a :b :c] inc))
-;; => "Elapsed time: 4305.429 msecs"
-;; (defn manual-transform [data]
-;;   (update data
-;;           :a
-;;           (fn [d1]
-;;             (update d1
-;;                     :b
-;;                     (fn [d2]
-;;                       (update d2 :c inc))))))
-
-;; (benchmark 1000000 #(manual-transform DATA))
-;; => "Elapsed time: 161.945 msecs"
-;; (select [{:foo 1} {:foo 2 :bar 1} {:foo 4}] [(filter* #(:bar %)) first*])
