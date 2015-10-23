@@ -1,6 +1,8 @@
 # keyhole
 
-<q> Every age has a keyhole to which its eye is pasted. -- Mary McCarthy</q>
+> Every age has a keyhole to which its eye is pasted. -- Mary McCarthy
+<br/>
+<br/>
 <img src="https://cloud.githubusercontent.com/assets/1006557/10665167/7eab4846-78c9-11e5-9ac5-a694428435b9.jpg" align="right"/>
 
 Keyhole is a small library for performing keyhole surgery on data.
