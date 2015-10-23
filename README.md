@@ -1,6 +1,9 @@
 # keyhole
 
-keyhole is a small library for performing keyhole surgery on data.
+> Every age has a keyhole to which its eye is pasted. -- Mary McCarthy
+<img src="https://cloud.githubusercontent.com/assets/1006557/10665167/7eab4846-78c9-11e5-9ac5-a694428435b9.jpg" align="right"/>
+
+Keyhole is a small library for performing keyhole surgery on data.
 
 ## Installation
 
@@ -40,7 +43,6 @@ Add the following dependency to your `project.clj` file:
 ```
 
 ## Raison d'être
-<img src="https://cloud.githubusercontent.com/assets/1006557/10665167/7eab4846-78c9-11e5-9ac5-a694428435b9.jpg" align="right"/>
 This library is heavily inspired by
 [specter](https://github.com/nathanmarz/specter).  I think
 [specter](https://github.com/nathanmarz/specter) is the best thing to
