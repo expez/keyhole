@@ -7,6 +7,12 @@
 
 Keyhole is a small library for performing keyhole surgery on data.
 
+It's heavily influenced by the wonderful [specter](https://github.com/nathanmarz/specter) library--so much so that keyhole's only claim to fame is increased ease of use.
+
+<br/>
+<br/>
+<br/>
+
 ## Installation
 
 Add the following dependency to your `project.clj` file:
