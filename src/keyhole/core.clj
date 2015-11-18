@@ -5,10 +5,10 @@
              [parser :as parser]
              [protocols :as protocols]]))
 
-(defmacro update-in [coll spec f]
-  (let [spec (parser/parse-spec spec f)]
+(defmacro update-in [coll spec f & args]
+  (let [spec (parser/parse-spec spec f args)]
     `(~(protocols/transformer spec) ~coll)))
 
 (defmacro get-in [coll spec]
-  (let [spec (parser/parse-spec spec identity)]
+  (let [spec (parser/parse-spec spec identity [])]
     `(impl/remove-sentinels (~(protocols/selector spec) ~coll))))

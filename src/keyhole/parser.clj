@@ -40,12 +40,13 @@
       (spec-type step))))
 
 ;; Wrapper for the final selector / transformer.
-(defrecord Fin [f t]
+(defrecord Fin [f args t]
   protocols/Transformer
-  (protocols/transformer [this] f)
-  (protocols/transformer-basis [this] [t f])
+  (protocols/transformer [this] `(fn [v#] (~f v# ~@args)))
+  (protocols/transformer-basis [this] [t `(fn [v#] (~f v# ~@args))])
   protocols/Selector
   (protocols/selector [this] `(comp list ~f)))
 
-(defn parse-spec [spec transformer]
-  (link-steps (conj (mapv parse spec) (Fin. transformer (spec-type (last spec))))))
+(defn parse-spec [spec transformer args]
+  (link-steps (conj (mapv parse spec)
+                    (Fin. transformer args (spec-type (last spec))))))
