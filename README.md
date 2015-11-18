@@ -48,6 +48,15 @@ Add the following dependency to your `project.clj` file:
 ;; Replace the subsequence from index 2 to 4 with [-1 -1 -1]
 (k/update-in [0 1 2 3 4 5 6 7 8 9] [(range* 2 4)] (constantly [-1 -1 -1]))
 ;;=> [0 1 -1 -1 4 5 6 7 8 9]
+
+;; concatenate the sequence [:a :b] to every nested sequence of a sequence:
+(k/update-in [[1] '(1 2) [:c]] [all*] concat [:a :b])
+;;=> [(1 :a :b) (1 2 :a :b) (:c :a :b)]
+
+;; Note that concat has changed the collection type here.
+;; Perhaps that wasn't what I wanted:
+(update-in [[1] '(1 2) [:c]] [all*] (fn [coll v] (util/same-collection-type coll (concat coll v))) [:a :b])
+;;=> [[1 :a :b] (1 2 :a :b) [:c :a :b]]
 ```
 
 ## Raison d'être
